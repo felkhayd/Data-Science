@@ -78,3 +78,41 @@ def get_grid(n, n_row=None, n_col=None, titles=None, figsize=(10, 8), wspace=.5,
     if titles is not None:
         for ax, title in zip(axs.flat, titles): ax.set_title(title)
     return fig, axs
+
+def normalize_token(tok: str) -> list:
+    tok = tok.strip()
+    if not tok: return []
+    if tok.startswith("t") and tok[1:].isdigit():
+        return [f"TWIN_{tok[1:]}"]  # fenêtre tXX -> token temporel
+
+    m = ACTION_RE.match(tok)
+    if not m:
+        # ex. "Double-clic" simple, ou token inconnu
+        return [tok.replace(" ", "_")]
+    base = m.group("base").strip().replace(" ", "_")
+    ctrl = (m.group("ctrl") or "").strip().replace(".", "_").replace(" ", "_")
+    conf = (m.group("conf") or "").strip().replace(" ", "_")
+    chain = (m.group("chain") or "").strip().replace(" ", "_")
+    edit = m.group("edit")
+
+    out = [f"A_{base}"]
+    if ctrl:  out.append(f"C_{ctrl}")
+    if conf:  out.append(f"CFG_{conf}")
+    if chain: out.append(f"CH_{chain}")
+    if edit:  out.append("EDIT_1")
+    return out
+
+def seq_to_text(seq_list):
+    toks = []
+    for tok in seq_list:
+        toks.extend(normalize_token(tok))
+    # on garde aussi quelques bigrams implicites: TF-IDF n-grammes gérera la cooccurrence
+    return " ".join(toks)
+
+def row_to_sequence(row, start_col=2):
+    vals = []
+    for c in row.index[start_col:]:
+        v = row[c]
+        if pd.isna(v): break
+        vals.append(str(v))
+    return vals
